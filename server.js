@@ -718,9 +718,19 @@ const server = http.createServer(async (req, res) => {
         if (fs.existsSync(STATS_PATH)) { try { hwInfo = { ...hwInfo, ...JSON.parse(fs.readFileSync(STATS_PATH, 'utf8')) }; } catch (e) {} }
         
         let quickUrl = currentActiveDomain || "Menunggu Quick Tunnel...";
-        let ztSshDomains = getDomainsByPort(['8880', '8881']);
-        let ztVmessDomains = getDomainsByPort(['8001']);
-        let passConfigured = getAdminPassword() !== null;
+let ztSshDomains = getDomainsByPort(['8880', '8881']);
+let ztVmessDomains = getDomainsByPort(['8001']);
+
+// Fallback ke domain publik Railway kalau domain VMESS/VLESS
+// gagal terbaca dari log tunnel.
+if (ztVmessDomains.length === 0 && process.env.RAILWAY_PUBLIC_DOMAIN) {
+    ztVmessDomains = [{
+        domain: process.env.RAILWAY_PUBLIC_DOMAIN.replace(/^https?:\/\//, ''),
+        port: '8001'
+    }];
+}
+
+let passConfigured = getAdminPassword() !== null;
         let netSettings = getNetworkSettings();
         let wsProxyCfg = getWsProxyConfig();
         let sysSettings = getSystemSettings();
