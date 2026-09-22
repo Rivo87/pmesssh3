@@ -173,38 +173,40 @@ function restartSingleTunnel(newToken) {
 
 function getDomainsByPort(targetPorts) {
     const domains = [];
+
     try {
-        if (fs.existsSync(ZT_LOG_PATH)) {
-            const logContent = fs.readFileSync(ZT_LOG_PATH, 'utf8');
-            const portRegexStr = targetPorts.join('|');
+        if (!fs.existsSync(ZT_LOG_PATH)) return domains;
 
-            const regexIngress = new RegExp(`(?:\\\\?"|")hostname(?:\\\\?"|")\\s*:\\s*(?:\\\\?"|")([^"\\\\]+)(?:\\\\?"|")[^}]*?localhost:(${portRegexStr})`, 'g');
-            let match;
-            
-            while ((match = regexIngress.exec(logContent)) !== null) {
-                const domainName = match[1].trim();
-                const portNum = match[2];
-                if (!domains.some(d => d.domain === domainName)) {
-                    domains.push({ domain: domainName, port: portNum });
-                }
-            }
+        let logContent = fs.readFileSync(ZT_LOG_PATH, 'utf8');
 
-            if (domains.length === 0) {
-                const regexIngressReverse = new RegExp(`localhost:(${portRegexStr})[^}]*?(?:\\\\?"|")hostname(?:\\\\?"|")\\s*:\\s*(?:\\\\?"|")([^"\\\\]+)(?:\\\\?"|")`, 'g');
-                while ((match = regexIngressReverse.exec(logContent)) !== null) {
-                    const portNum = match[1];
-                    const domainName = match[2].trim();
-                    if (!domains.some(d => d.domain === domainName)) {
-                        domains.push({ domain: domainName, port: portNum });
-                    }
-                }
+        // Normalisasi JSON Cloudflared yang ter-escape di log
+        logContent = logContent.replace(/\\"/g, '"');
+
+        // Ambil setiap pasangan hostname + service localhost
+        const regex = /"hostname"\s*:\s*"([^"]+)"\s*,\s*"service"\s*:\s*"http:\/\/localhost:(\d+)"/g;
+
+        let match;
+
+        while ((match = regex.exec(logContent)) !== null) {
+            const domainName = match[1].trim();
+            const portNum = match[2];
+
+            if (
+                targetPorts.includes(portNum) &&
+                !domains.some(d => d.domain === domainName)
+            ) {
+                domains.push({
+                    domain: domainName,
+                    port: portNum
+                });
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Gagal membaca domain Zero Trust:", e.message);
+    }
 
     return domains;
 }
-
 function getCurrentHosts() {
     let hwInfo = {};
     if (fs.existsSync(STATS_PATH)) {
