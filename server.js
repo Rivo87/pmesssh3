@@ -552,7 +552,18 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    if (pathName === '/api/setup-pass') {
+if (pathName === '/api/debugdomains') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+
+    return res.end(JSON.stringify({
+        ssh: getDomainsByPort(['8880', '8881']),
+        vmess: getDomainsByPort(['8001']),
+        log_exists: fs.existsSync(ZT_LOG_PATH),
+        log_path: ZT_LOG_PATH
+    }, null, 2));
+} 
+  
+     if (pathName === '/api/setup-pass') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const newPass = query.pass ? query.pass.trim() : "";
         const oldPass = query.old_pass ? query.old_pass.trim() : "";
