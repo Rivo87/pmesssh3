@@ -179,20 +179,22 @@ function getDomainsByPort(targetPorts) {
 
         let logContent = fs.readFileSync(ZT_LOG_PATH, 'utf8');
 
-        // Normalisasi JSON Cloudflared yang ter-escape di log
-        logContent = logContent.replace(/\\"/g, '"');
+        // Hilangkan escape dari JSON yang ditulis cloudflared ke log
+        logContent = logContent
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\');
 
-        // Ambil setiap pasangan hostname + service localhost
-        const regex = /"hostname"\s*:\s*"([^"]+)"\s*,\s*"service"\s*:\s*"http:\/\/localhost:(\d+)"/g;
+        // Cari setiap object ingress yang mempunyai hostname + service
+        const objectRegex = /\{[^{}]*"hostname"\s*:\s*"([^"]+)"[^{}]*"service"\s*:\s*"[^"]*localhost:(\d+)[^"]*"[^{}]*\}/g;
 
         let match;
 
-        while ((match = regex.exec(logContent)) !== null) {
+        while ((match = objectRegex.exec(logContent)) !== null) {
             const domainName = match[1].trim();
             const portNum = match[2];
 
             if (
-                targetPorts.includes(portNum) &&
+                targetPorts.map(String).includes(String(portNum)) &&
                 !domains.some(d => d.domain === domainName)
             ) {
                 domains.push({
@@ -201,8 +203,9 @@ function getDomainsByPort(targetPorts) {
                 });
             }
         }
+
     } catch (e) {
-        console.error("Gagal membaca domain Zero Trust:", e.message);
+        console.error("Domain parser error:", e);
     }
 
     return domains;
